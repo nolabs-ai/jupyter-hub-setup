@@ -25,32 +25,29 @@ c.GitHubOAuthenticator.oauth_callback_url = os.environ.get('OAUTH_CALLBACK_URL')
 # Ensure org membership checks work even for private orgs
 c.GitHubOAuthenticator.scope = ["read:org"]
 
-# Org or user-based access control
-# - If ALLOWED_ORGS is set, we restrict by org (and optional team) membership.
-# - If ALLOWED_USERS is set, we also restrict to these explicit usernames.
-# - If neither is set, we optionally read allowed users from a file.
+# Access control - UNION semantics (oauthenticator >=16):
+# A user is allowed if they match ANY of:
+#   - ALLOWED_ORGS env (comma-separated, accepts "org" or "org:team")
+#   - ALLOWED_USERS env (comma-separated GitHub usernames)
+#   - /srv/jupyterhub/allowed_users.txt (one username per line, # comments ok)
+#   - ADMIN_USERS env (admins always allowed)
 
 allowed_orgs_env = os.environ.get('ALLOWED_ORGS', '')
 allowed_orgs = [tok.strip() for tok in allowed_orgs_env.split(',') if tok.strip()]
 if allowed_orgs:
-    # When org restriction is enabled, ignore ALLOWED_USERS to avoid intersection lockouts
     c.GitHubOAuthenticator.allowed_organizations = allowed_orgs
-    allowed_users = set()
-else:
-    allowed_users_env = os.environ.get('ALLOWED_USERS', '')
-    allowed_users = set()
-    if allowed_users_env:
-        allowed_users = {u.strip() for u in allowed_users_env.split(',') if u.strip()}
-    else:
-        # Fallback to file inside the persistent volume
-        allow_file = '/srv/jupyterhub/allowed_users.txt'
-        if os.path.exists(allow_file):
-            with open(allow_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith('#'):
-                        continue
-                    allowed_users.add(line)
+
+allowed_users_env = os.environ.get('ALLOWED_USERS', '')
+allowed_users = {u.strip() for u in allowed_users_env.split(',') if u.strip()}
+
+allow_file = '/srv/jupyterhub/allowed_users.txt'
+if os.path.exists(allow_file):
+    with open(allow_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            allowed_users.add(line)
 
 admin_users_env = os.environ.get('ADMIN_USERS', '')
 admin_users = {u.strip() for u in admin_users_env.split(',') if u.strip()}
