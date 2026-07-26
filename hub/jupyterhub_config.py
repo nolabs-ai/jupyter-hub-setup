@@ -74,6 +74,13 @@ c.DockerSpawner.debug = True
 c.DockerSpawner.use_internal_ip = True
 c.DockerSpawner.network_name = os.environ.get('DOCKER_NETWORK', 'jupyterhub-net')
 
+# The first spawn pulls a multi-GB singleuser image; the default 60s timeout gives up
+# mid-pull. Allow generous time, and prefer the locally-present image (pre-pulled on the
+# host at boot) so subsequent spawns are instant.
+c.Spawner.start_timeout = int(os.environ.get('SPAWN_START_TIMEOUT', '600'))
+c.Spawner.http_timeout = int(os.environ.get('SPAWN_HTTP_TIMEOUT', '120'))
+c.DockerSpawner.pull_policy = os.environ.get('SINGLEUSER_PULL_POLICY', 'ifnotpresent')
+
 # Mount host /workspace and a per-user home volume
 host_workspace = os.environ.get('HOST_WORKSPACE', '/workspace')
 

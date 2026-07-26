@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Docker-based JupyterHub deployment with nginx reverse proxy, Let's Encrypt TLS, and GitHub OAuth authentication. Uses DockerSpawner to create per-user notebook containers with optional GPU support.
+Docker-based JupyterHub deployment with nginx reverse proxy, Let's Encrypt TLS, and Google (Workspace) OAuth authentication. Uses DockerSpawner to create per-user notebook containers with optional GPU support.
 
 ## Architecture
 
@@ -58,11 +58,9 @@ docker build -t singleuser:py311-cuda -f singleuser/Dockerfile.gpu singleuser
 
 ## Access Control
 
-Two modes (mutually exclusive in practice):
-1. **Org-based** (`ALLOWED_ORGS`): comma-separated orgs or `org:team` entries
-2. **User-based** (`ALLOWED_USERS`): comma-separated GitHub usernames, or via `hub/allowed_users.txt`
-
-When `ALLOWED_ORGS` is set, user-based restrictions are ignored.
+Union semantics (a user is allowed if they match any):
+1. **Domain-based** (`ALLOWED_DOMAINS`): comma-separated Google Workspace domains (e.g. `nolabs.ai`)
+2. **User-based** (`ALLOWED_USERS`): comma-separated Google account emails, or via `hub/allowed_users.txt`
 
 ## GPU Configuration
 
