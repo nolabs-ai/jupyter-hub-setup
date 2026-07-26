@@ -1,9 +1,9 @@
-# JupyterHub on Docker with GitHub OAuth, nginx proxy, and Let’s Encrypt
+# JupyterHub on Docker with Google OAuth, nginx proxy, and Let’s Encrypt
 
-This stack runs a JupyterHub behind an `nginx` reverse proxy with automatic TLS via Let’s Encrypt, using GitHub OAuth for authentication and DockerSpawner for per-user notebook containers. It also mounts a large host workspace (e.g., `/workspace`) into user containers for models and datasets.
+This stack runs a JupyterHub behind an `nginx` reverse proxy with automatic TLS via Let’s Encrypt, using Google (Workspace) OAuth for authentication and DockerSpawner for per-user notebook containers. It also mounts a large host workspace (e.g., `/workspace`) into user containers for models and datasets.
 
 - Reverse proxy: `nginx-proxy` + `acme-companion` (auto certificates)
-- Auth: GitHub OAuth2 (only allowed usernames)
+- Auth: Google OAuth2 (restricted to allowed Workspace domain(s))
 - Hub: Custom image based on `jupyterhub/jupyterhub` with `oauthenticator` and `dockerspawner`
 - Spawner: DockerSpawner (optional GPU support)
 - Storage: Persistent Hub state + host `/workspace` bind mount
@@ -24,7 +24,7 @@ Tested target: Ubuntu Deep Learning Base AMI with Single CUDA (Ubuntu 22.04) 202
 - Ports 80 and 443 open to the internet (security group/firewall).
 - Docker Engine and Docker Compose plugin installed.
 - On the target AMI, NVIDIA drivers are present; for GPU in containers, also ensure the NVIDIA Container Toolkit is installed and working with Docker.
-- A GitHub account to create an OAuth App.
+- A Google Cloud project (to create an OAuth client) and a Google Workspace domain for access control.
 
 ### NVIDIA Container Toolkit (for GPU, optional)
 If your AMI does not already have the toolkit, install it following NVIDIA’s docs. On Ubuntu 22.04, summarized steps:
@@ -42,18 +42,18 @@ Verify with `docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu22.04 nvid
 
 - `docker-compose.yml` — Orchestrates proxy, certificates, and JupyterHub.
 - `hub/Dockerfile` — Custom Hub image with OAuth + DockerSpawner.
-- `hub/jupyterhub_config.py` — Hub config (GitHub OAuth, spawner, volumes, GPU).
-- `hub/allowed_users.txt` — Optional list of GitHub usernames allowed to log in.
+- `hub/jupyterhub_config.py` — Hub config (Google OAuth, spawner, volumes, GPU).
+- `hub/allowed_users.txt` — Optional list of Google account emails allowed to log in.
 - `.env.example` — Template for required environment variables.
 - `singleuser/` — Dockerfiles for Python 3.11 single-user images (CPU and GPU).
 
-## GitHub OAuth App Setup
+## Google OAuth Client Setup
 
-1. Go to https://github.com/settings/developers -> OAuth Apps -> New OAuth App.
-2. Application name: anything descriptive (e.g., “My JupyterHub”).
-3. Homepage URL: `https://YOUR_DOMAIN` (e.g., `https://jhub.example.com`).
-4. Authorization callback URL: `https://YOUR_DOMAIN/hub/oauth_callback`.
-5. Create the app and copy the Client ID and Client Secret.
+1. In the Google Cloud console -> APIs & Services -> Credentials -> Create credentials -> OAuth client ID.
+2. Application type: **Web application**; name: anything descriptive (e.g., “JupyterHub”).
+3. Authorized redirect URI: `https://YOUR_DOMAIN/hub/oauth_callback`.
+4. Configure the OAuth consent screen as **Internal** (restricts sign-in to your Workspace).
+5. Create and copy the Client ID and Client Secret.
 
 ## Configuration
 
@@ -67,11 +67,12 @@ Verify with `docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu22.04 nvid
    Required values:
    - `DOMAIN`: your DNS name (e.g., `jhub.example.com`).
    - `LETSENCRYPT_EMAIL`: email for certificate issuance/renewal notices.
-   - `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`: from your OAuth App.
+   - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`: from your OAuth client.
    - `OAUTH_CALLBACK_URL`: typically `https://${DOMAIN}/hub/oauth_callback`.
-   - Access control mode (choose one; if `ALLOWED_ORGS` is set, `ALLOWED_USERS` is ignored):
-     - `ALLOWED_ORGS`: comma-separated GitHub organizations or `org:team` entries (preferred for org-based access).
-     - Or `ALLOWED_USERS`: comma-separated GitHub usernames (used only if `ALLOWED_ORGS` is empty).
+   - Access control (union — a user is allowed if they match any):
+     - `ALLOWED_DOMAINS`: comma-separated Google Workspace domains, e.g. `nolabs.ai` (preferred; anyone in the domain is allowed).
+     - `ALLOWED_USERS`: comma-separated Google account emails (additive to `ALLOWED_DOMAINS`).
+     - `/srv/jupyterhub/allowed_users.txt`: emails, one per line.
 
    Optional values:
    - `ADMIN_USERS`: subset of allowed users with admin privileges.

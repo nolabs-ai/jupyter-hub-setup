@@ -1,6 +1,6 @@
 import os
 
-from oauthenticator.github import GitHubOAuthenticator
+from oauthenticator.google import GoogleOAuthenticator
 
 c = get_config()  # noqa
 
@@ -17,25 +17,31 @@ c.JupyterHub.hub_connect_ip = os.environ.get('HUB_CONNECT_IP', 'jupyterhub')
 c.JupyterHub.cookie_secret_file = '/srv/jupyterhub/jupyterhub_cookie_secret'
 c.JupyterHub.db_url = 'sqlite:////srv/jupyterhub/jupyterhub.sqlite'
 
-# Auth: GitHub OAuth
-c.JupyterHub.authenticator_class = GitHubOAuthenticator
-c.GitHubOAuthenticator.client_id = os.environ.get('GITHUB_CLIENT_ID')
-c.GitHubOAuthenticator.client_secret = os.environ.get('GITHUB_CLIENT_SECRET')
-c.GitHubOAuthenticator.oauth_callback_url = os.environ.get('OAUTH_CALLBACK_URL')
-# Ensure org membership checks work even for private orgs
-c.GitHubOAuthenticator.scope = ["read:org"]
+# Auth: Google OAuth (Workspace). The login identity is the user's @nolabs.ai Google
+# account == their GCP principal, so a hub-launched run is attributable to the same email
+# used for provisioning, LAUNCHED_BY, and bucket namespacing. See training-infra#14 (pillar 4a).
+c.JupyterHub.authenticator_class = GoogleOAuthenticator
+c.GoogleOAuthenticator.client_id = os.environ.get('GOOGLE_CLIENT_ID')
+c.GoogleOAuthenticator.client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
+c.GoogleOAuthenticator.oauth_callback_url = os.environ.get('OAUTH_CALLBACK_URL')
+# Login-only scope (4a). 4b adds https://www.googleapis.com/auth/cloud-platform +
+# enable_auth_state to derive per-user gcloud creds in the container (separate change).
+c.GoogleOAuthenticator.scope = ['openid', 'email']
 
 # Access control - UNION semantics (oauthenticator >=16):
 # A user is allowed if they match ANY of:
-#   - ALLOWED_ORGS env (comma-separated, accepts "org" or "org:team")
-#   - ALLOWED_USERS env (comma-separated GitHub usernames)
-#   - /srv/jupyterhub/allowed_users.txt (one username per line, # comments ok)
+#   - ALLOWED_DOMAINS env (comma-separated Google Workspace domains, e.g. "nolabs.ai")
+#   - ALLOWED_USERS env (comma-separated Google account emails)
+#   - /srv/jupyterhub/allowed_users.txt (one email per line, # comments ok)
 #   - ADMIN_USERS env (admins always allowed)
 
-allowed_orgs_env = os.environ.get('ALLOWED_ORGS', '')
-allowed_orgs = [tok.strip() for tok in allowed_orgs_env.split(',') if tok.strip()]
-if allowed_orgs:
-    c.GitHubOAuthenticator.allowed_organizations = allowed_orgs
+# Domain gate: hosted_domain restricts WHO may authenticate; allow_all then permits every
+# authenticated (i.e. in-domain) user. Together = "anyone in an allowed Workspace domain".
+allowed_domains_env = os.environ.get('ALLOWED_DOMAINS', '')
+allowed_domains = [d.strip() for d in allowed_domains_env.split(',') if d.strip()]
+if allowed_domains:
+    c.GoogleOAuthenticator.hosted_domain = allowed_domains
+    c.GoogleOAuthenticator.allow_all = True
 
 allowed_users_env = os.environ.get('ALLOWED_USERS', '')
 allowed_users = {u.strip() for u in allowed_users_env.split(',') if u.strip()}
