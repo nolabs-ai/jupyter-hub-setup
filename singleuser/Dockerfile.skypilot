@@ -1,0 +1,31 @@
+# SkyPilot-ready singleuser image for the decoupled hub.
+#
+# JupyterLab (standard datascience stack) + the SkyPilot client + gcloud, so researchers
+# launch GPU jobs from the notebook (`sky launch ...`) instead of the hub box having a GPU.
+# Job VMs run as the skypilot-v1 SA (SERVICE_ACCOUNT) via the preloaded ~/.sky/config.yaml,
+# so no personal credentials land on the ephemeral GPU VMs. GCP auth in the notebook comes
+# from the hub VM's attached SA via the metadata server (Application Default Credentials).
+FROM quay.io/jupyter/datascience-notebook:python-3.13
+
+USER root
+
+# gcloud CLI (SkyPilot shells out to it) + rsync/ssh (SkyPilot needs them client-side to
+# provision and sync files to the VM).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends apt-transport-https ca-certificates gnupg curl rsync openssh-client \
+ && curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+      | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
+ && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
+      > /etc/apt/sources.list.d/google-cloud-sdk.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends google-cloud-cli \
+ && rm -rf /var/lib/apt/lists/*
+
+USER ${NB_UID}
+
+# SkyPilot client (GCP extras)
+RUN pip install --no-cache-dir "skypilot[gcp]"
+
+# Preload the sky config: GPU job VMs run as the skypilot-v1 SA (no personal creds uploaded).
+RUN mkdir -p /home/${NB_USER}/.sky \
+ && printf 'gcp:\n  remote_identity: SERVICE_ACCOUNT\n' > /home/${NB_USER}/.sky/config.yaml

@@ -1,4 +1,4 @@
-# One GitHub username per line. Lines starting with # are ignored.
+# One Google account email per line. Lines starting with # are ignored.
 # If you set ALLOWED_USERS in .env this file is ignored.
 
 # example:
