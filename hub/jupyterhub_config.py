@@ -81,6 +81,17 @@ c.Spawner.start_timeout = int(os.environ.get('SPAWN_START_TIMEOUT', '600'))
 c.Spawner.http_timeout = int(os.environ.get('SPAWN_HTTP_TIMEOUT', '120'))
 c.DockerSpawner.pull_policy = os.environ.get('SINGLEUSER_PULL_POLICY', 'ifnotpresent')
 
+# Per-user resource ceilings so one notebook can't starve a shared box (noisy neighbor).
+# These are CAPS, not reservations -- light/idle users don't consume their limit, so a
+# team can safely oversubscribe. Heavy local compute should go to SkyPilot, not the hub.
+# Empty string disables a limit.
+_mem = os.environ.get('SINGLEUSER_MEM_LIMIT', '4G')
+if _mem:
+    c.Spawner.mem_limit = _mem
+_cpu = os.environ.get('SINGLEUSER_CPU_LIMIT', '2')
+if _cpu:
+    c.Spawner.cpu_limit = float(_cpu)
+
 # Mount host /workspace and a per-user home volume
 host_workspace = os.environ.get('HOST_WORKSPACE', '/workspace')
 
