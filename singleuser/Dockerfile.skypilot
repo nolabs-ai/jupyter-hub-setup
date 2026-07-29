@@ -27,8 +27,10 @@ RUN apt-get update \
 
 USER ${NB_UID}
 
-# SkyPilot client (GCP extras)
-RUN pip install --no-cache-dir "skypilot[gcp]"
+# SkyPilot client (GCP extras). PINNED to match the shared API server version
+# (training-infra gcp-api-server, currently 0.13.0) -- SkyPilot enforces client<->server
+# version compatibility, so bump these together.
+RUN pip install --no-cache-dir "skypilot[gcp]==0.13.0"
 
 # Preload the sky config:
 #  - allowed_clouds: [gcp] -> SkyPilot only checks/uses GCP, so `sky check` shows one clean

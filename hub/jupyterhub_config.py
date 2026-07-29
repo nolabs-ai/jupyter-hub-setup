@@ -109,6 +109,18 @@ if shared_subdir:
     volumes[host_shared] = {'bind': '/home/jovyan/Shared', 'mode': 'rw'}
 c.DockerSpawner.volumes = volumes
 
+# Point notebooks at the shared SkyPilot API server (RFC #27) so `sky` uses the central
+# control plane (shared status, one jobs-controller, enforced autostop) instead of a
+# per-notebook local server. Injected from the hub env (set by the gcp-hub terraform .env).
+# No-op if unset. Reaches every spawn (unlike ~/.sky/config.yaml, which the home volume masks).
+_sky_endpoint = os.environ.get('SKYPILOT_API_SERVER_ENDPOINT', '').strip()
+if _sky_endpoint:
+    _sky_env = {'SKYPILOT_API_SERVER_ENDPOINT': _sky_endpoint}
+    if isinstance(getattr(c.Spawner, 'environment', None), dict):
+        c.Spawner.environment.update(_sky_env)
+    else:
+        c.Spawner.environment = _sky_env
+
 # Optional GPU support
 enable_gpu = os.environ.get('ENABLE_GPU', 'false').lower() in {'1', 'true', 'yes', 'on'}
 if enable_gpu:

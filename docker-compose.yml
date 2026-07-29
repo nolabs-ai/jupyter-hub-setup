@@ -64,6 +64,9 @@ services:
       - ADMIN_USERS=${ADMIN_USERS}
       - ENABLE_GPU=${ENABLE_GPU}
       - DOCKER_NETWORK=jupyterhub-net
+      # Shared SkyPilot API server endpoint (RFC #27); injected into notebooks by the hub
+      # config. Empty default -> no-op when unset.
+      - SKYPILOT_API_SERVER_ENDPOINT=${SKYPILOT_API_SERVER_ENDPOINT-}
     volumes:
       # Persist Hub DB, cookie secret, and configs
       - jupyterhub_data:/srv/jupyterhub
