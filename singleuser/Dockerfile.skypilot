@@ -10,15 +10,19 @@ FROM quay.io/jupyter/datascience-notebook:python-3.13
 USER root
 
 # gcloud CLI (SkyPilot shells out to it) + rsync/ssh (SkyPilot needs them client-side to
-# provision and sync files to the VM).
+# provision and sync files to the VM) + gh (GitHub CLI).
 RUN apt-get update \
  && apt-get install -y --no-install-recommends apt-transport-https ca-certificates gnupg curl rsync openssh-client \
  && curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
       | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
  && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
       > /etc/apt/sources.list.d/google-cloud-sdk.list \
+ && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+      | gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg \
+ && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+      > /etc/apt/sources.list.d/github-cli.list \
  && apt-get update \
- && apt-get install -y --no-install-recommends google-cloud-cli \
+ && apt-get install -y --no-install-recommends google-cloud-cli gh \
  && rm -rf /var/lib/apt/lists/*
 
 USER ${NB_UID}
