@@ -30,6 +30,10 @@ USER ${NB_UID}
 # SkyPilot client (GCP extras)
 RUN pip install --no-cache-dir "skypilot[gcp]"
 
-# Preload the sky config: GPU job VMs run as the skypilot-v1 SA (no personal creds uploaded).
+# Preload the sky config:
+#  - allowed_clouds: [gcp] -> SkyPilot only checks/uses GCP, so `sky check` shows one clean
+#    block instead of ~40 disabled providers (and skips the noisy DO/azure adapter traceback).
+#  - gcp.remote_identity: SERVICE_ACCOUNT -> GPU job VMs run as the skypilot-v1 SA (no personal
+#    creds uploaded).
 RUN mkdir -p /home/${NB_USER}/.sky \
- && printf 'gcp:\n  remote_identity: SERVICE_ACCOUNT\n' > /home/${NB_USER}/.sky/config.yaml
+ && printf 'allowed_clouds:\n  - gcp\ngcp:\n  remote_identity: SERVICE_ACCOUNT\n' > /home/${NB_USER}/.sky/config.yaml
